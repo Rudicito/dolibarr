@@ -42,6 +42,11 @@ class ExpenseReportLine extends CommonObjectLine
 	public $db;
 
 	/**
+	 * @var string ID to identify managed object
+	 */
+	public $element = 'expensereport_det';
+
+	/**
 	 * @var string Name of table without prefix where object is stored
 	 */
 	public $table_element = 'expensereport_det';
@@ -298,6 +303,8 @@ class ExpenseReportLine extends CommonObjectLine
 
 			$this->db->free($result);
 
+			$this->fetch_optionals();
+
 			return $this->id;
 		} else {
 			dol_print_error($this->db);
@@ -386,6 +393,11 @@ class ExpenseReportLine extends CommonObjectLine
 					$this->error = $tmpparent->error;
 					$this->errors = $tmpparent->errors;
 				}
+			}
+
+			$result = $this->insertExtraFields();
+			if ($result < 0) {
+				$error++;
 			}
 		} else {
 			$error++;
@@ -516,6 +528,11 @@ class ExpenseReportLine extends CommonObjectLine
 				$error++;
 				$this->error = $tmpparent->error;
 				$this->errors = $tmpparent->errors;
+			}
+
+			$result = $this->insertExtraFields();
+			if ($result < 0) {
+				$error++;
 			}
 		} else {
 			$error++;

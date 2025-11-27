@@ -135,6 +135,7 @@ function expensereport_admin_prepare_head()
 
 	$extrafields = new ExtraFields($db);
 	$extrafields->fetch_name_optionals_label('expensereport');
+	$extrafields->fetch_name_optionals_label('expensereport_det');
 
 	$h = 0;
 	$head = array();
@@ -169,6 +170,15 @@ function expensereport_admin_prepare_head()
 		$head[$h][1] .= '<span class="badge marginleftonlyshort">'.$nbExtrafields.'</span>';
 	}
 	$head[$h][2] = 'attributes';
+	$h++;
+
+	$head[$h][0] = dolBuildUrl(DOL_URL_ROOT.'/admin/expensereport_det_extrafields.php');
+	$head[$h][1] = $langs->trans("ExtraFieldsLines");
+	$nbExtrafields = $extrafields->attributes['expensereport_det']['count'];
+	if ($nbExtrafields > 0) {
+		$head[$h][1] .= '<span class="badge marginleftonlyshort">'.$nbExtrafields.'</span>';
+	}
+	$head[$h][2] = 'attributeslines';
 	$h++;
 
 	complete_head_from_modules($conf, $langs, null, $head, $h, 'expensereport_admin', 'remove');

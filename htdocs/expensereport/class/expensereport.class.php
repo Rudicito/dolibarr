@@ -1952,9 +1952,10 @@ class ExpenseReport extends CommonObject
 	 * @param    int         $fk_c_exp_tax_cat         Car category id
 	 * @param    int         $type                     Type line
 	 * @param    int         $fk_ecm_files             Id of ECM file to link to this expensereport line
+	 * @param    array       $array_options            Extrafields array
 	 * @return   int                                   Return integer <0 if KO, >0 if OK
 	 */
-	public function addline($qty = 0, $up = 0, $fk_c_type_fees = 0, $vatrate = 0, $date = '', $comments = '', $fk_project = 0, $fk_c_exp_tax_cat = 0, $type = 0, $fk_ecm_files = 0)
+	public function addline($qty = 0, $up = 0, $fk_c_type_fees = 0, $vatrate = 0, $date = '', $comments = '', $fk_project = 0, $fk_c_exp_tax_cat = 0, $type = 0, $fk_ecm_files = 0, $array_options = array())
 	{
 		global $langs, $mysoc;
 
@@ -2032,6 +2033,10 @@ class ExpenseReport extends CommonObject
 			$this->line->fk_project = $fk_project;
 
 			$this->line->fk_ecm_files = $fk_ecm_files;
+
+			if (is_array($array_options) && count($array_options) > 0) {
+				$this->line->array_options = $array_options;
+			}
 
 			$this->applyOffset();
 			$this->checkRules($type, $seller);
@@ -2241,9 +2246,10 @@ class ExpenseReport extends CommonObject
 	 * @param   int         	$fk_c_exp_tax_cat       Id of category of car
 	 * @param   int         	$fk_ecm_files           Id of ECM file to link to this expensereport line
 	 * @param   int     		$notrigger      		1=No trigger
+	 * @param   array     		$array_options          Extrafields array
 	 * @return  int             	                    Return integer <0 if KO, >0 if OK
 	 */
-	public function updateline($rowid, $type_fees_id, $projet_id, $vatrate, $comments, $qty, $value_unit, $date, $expensereport_id, $fk_c_exp_tax_cat = 0, $fk_ecm_files = 0, $notrigger = 0)
+	public function updateline($rowid, $type_fees_id, $projet_id, $vatrate, $comments, $qty, $value_unit, $date, $expensereport_id, $fk_c_exp_tax_cat = 0, $fk_ecm_files = 0, $notrigger = 0, $array_options = array())
 	{
 		global $user, $mysoc;
 
@@ -2282,6 +2288,8 @@ class ExpenseReport extends CommonObject
 			$this->line->qty             = $qty;
 			$this->line->value_unit      = $value_unit;
 			$this->line->date            = $date;
+
+			$this->line->array_options = $array_options;
 
 			$this->line->fk_expensereport = $expensereport_id;
 			$this->line->fk_c_type_fees  = $type_fees_id;

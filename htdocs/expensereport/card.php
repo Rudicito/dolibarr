@@ -121,6 +121,11 @@ $extrafields = new ExtraFields($db);
 // fetch optionals attributes and labels
 $extrafields->fetch_name_optionals_label($object->table_element);
 
+// fetch optionals attributes lines and labels
+$extrafields->fetch_name_optionals_label($object->table_element_line);
+
+$ThereIsLineExtrafields = !empty($extrafields->attributes[$object->table_element_line]['count']);
+
 // Load object
 include DOL_DOCUMENT_ROOT.'/core/actions_fetchobject.inc.php'; // Must be 'include', not 'include_once'
 
@@ -134,6 +139,11 @@ $permissiontoeditextra = $permissiontoadd;
 if (GETPOST('attribute', 'aZ09') && isset($extrafields->attributes[$object->table_element]['perms'][GETPOST('attribute', 'aZ09')])) {
 	// For action 'update_extras', is there a specific permission set for the attribute to update
 	$permissiontoeditextra = dol_eval((string) $extrafields->attributes[$object->table_element]['perms'][GETPOST('attribute', 'aZ09')]);
+}
+$permissiontoeditextraline = $permissiontoadd;
+if (GETPOST('attribute', 'aZ09') && isset($extrafields->attributes[$object->table_element_line]['perms'][GETPOST('attribute', 'aZ09')])) {
+	// For action 'update_extras', is there a specific permission set for the attribute to update
+	$permissiontoeditextraline = dol_eval((string) $extrafields->attributes[$object->table_element_line]['perms'][GETPOST('attribute', 'aZ09')]);
 }
 
 $upload_dir = $conf->expensereport->dir_output.'/'.dol_sanitizeFileName($object->ref);
@@ -391,6 +401,33 @@ if (empty($reshook)) {
 
 		if ($error) {
 			$action = 'edit_extras';
+		}
+	}
+
+	//todo: remove?
+
+	// Extrafields line
+	if ($action == 'update_extras_line' && $permissiontoeditextraline) {
+		$array_options = array();
+		$num = count($object->lines);
+
+		for ($i = 0; $i < $num; $i++) {
+			// Extrafields
+			$extralabelsline = $extrafields->fetch_name_optionals_label($object->table_element_line);
+			$array_options[$i] = $extrafields->getOptionalsFromPost($extralabelsline, (string) $i);
+			// Unset extrafield
+			if (is_array($extralabelsline)) {
+				// Get extra fields
+				foreach ($extralabelsline as $key => $value) {
+					unset($_POST["options_".$key]);
+				}
+			}
+
+			$ret = $object->update_line($object->lines[$i]->id, $array_options[$i]); // extrafields update
+			if ($ret < 0) {
+				$mesg = '<div class="error">'.$object->error.'</div>';
+				$error++;
+			}
 		}
 	}
 
@@ -1060,6 +1097,7 @@ if (empty($reshook)) {
 	if ($action == 'set_paid' && $id > 0 && $user->hasRight('expensereport', 'to_paid')) {
 		$object = new ExpenseReport($db);
 		$object->fetch($id);
+		$object->fetch_optionals();
 
 		$result = $object->setPaid($id, $user);
 
@@ -1241,13 +1279,18 @@ if (empty($reshook)) {
 			setEventMessages($langs->trans("ErrorFieldRequired", $langs->transnoentitiesnoconv("File")), null, 'errors');
 		}
 
+		// Extrafields
+		$extrafields->fetch_name_optionals_label($object->table_element_line);
+		$array_options = $extrafields->getOptionalsFromPost($object->table_element_line);
+
 		if (!$error) {
 			$type = 0; // TODO What if service ? We should take the type product/service from the type of expense report llx_c_type_fees
 
 			// Insert line
-			$result = $object->addline($qty, $value_unit, $fk_c_type_fees, $vatrate, $date, $comments, $fk_project, $fk_c_exp_tax_cat, $type, $fk_ecm_files);
+			$result = $object->addline($qty, $value_unit, $fk_c_type_fees, $vatrate, $date, $comments, $fk_project, $fk_c_exp_tax_cat, $type, $fk_ecm_files, $array_options);
 			if ($result > 0) {
 				$ret = $object->fetch($object->id); // Reload to get new records
+				$object->fetch_optionals();
 
 				if (!getDolGlobalString('MAIN_DISABLE_PDF_AUTOUPDATE')) {
 					// Define output language
@@ -1356,6 +1399,8 @@ if (empty($reshook)) {
 		$qty = price2num(GETPOST('qty', 'alpha'));
 		$vatrate = GETPOST('vatrate', 'alpha');
 
+		$array_options = $extrafields->getOptionalsFromPost($object->table_element_line);
+
 		// if VAT is not used in Dolibarr, set VAT rate to 0 because VAT rate is necessary.
 		if (empty($vatrate)) {
 			$vatrate = "0.000";
@@ -1397,7 +1442,7 @@ if (empty($reshook)) {
 
 		if (!$error) {
 			// TODO Use update method of ExpenseReportLine
-			$result = $object->updateline($rowid, $type_fees_id, $projet_id, $vatrate, $comments, (float) $qty, (float) $value_unit, $date, $id, $fk_c_exp_tax_cat, $fk_ecm_files);
+			$result = $object->updateline($rowid, $type_fees_id, $projet_id, $vatrate, $comments, (float) $qty, (float) $value_unit, $date, $id, $fk_c_exp_tax_cat, $fk_ecm_files, 0, $array_options);
 			if ($result >= 0) {
 				if ($result > 0) {
 					// Define output language
@@ -1430,6 +1475,7 @@ if (empty($reshook)) {
 					unset($fk_c_type_fees);
 					unset($fk_project);
 					unset($date);
+					unset($array_options);
 				}
 
 				$action = '';
@@ -1581,6 +1627,7 @@ if ($action == 'create') {
 	$reshook = $hookmanager->executeHooks('formObjectOptions', $parameters, $object, $action); // Note that $action and $object may have been modified by
 	print $hookmanager->resPrint;
 	if (empty($reshook)) {
+		//todo: here? add ->list->
 		print $object->showOptionals($extrafields, 'create', $parameters);
 	}
 
@@ -2136,6 +2183,10 @@ if ($action == 'create') {
 					print '<td class="center linecolcarcategory">'.$langs->trans('CarCategory').'</td>';
 				}
 				print '<td class="linecoldescription">'.$langs->trans('Description').'</td>';
+				if ($ThereIsLineExtrafields)
+				{
+					print '<td class="linecolextrafields">'.$langs->trans('Extrafields').'</td>';
+				}
 				print '<td class="right linecolvat">'.$langs->trans('VAT').'</td>';
 				print '<td class="right linecolpriceuht">'.$langs->trans('PriceUHT').'</td>';
 				print '<td class="right linecolpriceuttc">'.$langs->trans('PriceUTTC').'</td>';
@@ -2159,6 +2210,7 @@ if ($action == 'create') {
 				print '</tr>';
 
 				foreach ($object->lines as &$line) {
+					$line->fetch($line->id);
 					$numline = $i + 1;
 
 					if ($action != 'editline' || $line->id != GETPOSTINT('rowid')) {
@@ -2215,6 +2267,22 @@ if ($action == 'create') {
 
 						// Comment
 						print '<td class="left linecolcomment">'.dol_nl2br($line->comments).'</td>';
+
+						// Extrafields
+						if ($ThereIsLineExtrafields)
+						{
+							print '<td class="linecolextrafields">';
+							$temps = $line->showOptionals($extrafields, 'view', array(), '', '', '1', 'line');
+
+							print '<div style="padding-top: 10px" id="extrafield_lines_area_' . $line->rowid . '" name="extrafield_lines_area_' . $line->rowid . '">';
+
+							if (!empty($temps)) {
+								print $temps;
+							}
+
+							print '</div>';
+							print '</td>';
+						}
 
 						// VAT rate
 						$senderissupplier = 0;
@@ -2468,6 +2536,24 @@ if ($action == 'create') {
 						print '<textarea name="comments" class="flat_ndf centpercent">'.dol_escape_htmltag($line->comments, 0, 1).'</textarea>';
 						print '</td>';
 
+						// Extrafields
+						if ($ThereIsLineExtrafields)
+						{
+							print '<td class="linecolextrafields">';
+							$extrafields->fetch_name_optionals_label($object->table_element_line);
+							$line->array_options = $extrafields->getOptionalsFromPost($object->table_element_line);
+							$temps = $line->showOptionals($extrafields, 'edit', array(), '', '', '1', 'line');
+
+							print '<div style="padding-top: 10px" id="extrafield_lines_area_' . $line->rowid . '" name="extrafield_lines_area_' . $line->rowid . '">';
+
+							if (!empty($temps)) {
+								print $temps;
+							}
+
+							print '</div>';
+							print '</td>';
+						}
+
 						// VAT
 						$selectedvat = price2num($line->vatrate).(!empty($line->vat_src_code) ? ' ('.$line->vat_src_code.')' : '');
 						print '<td class="right">';
@@ -2607,6 +2693,7 @@ if ($action == 'create') {
 					print '<td>'.$langs->trans('CarCategory').'</td>';
 				}
 				print '<td class="expensereportcreatedescription">'.$langs->trans('Description').'</td>';
+				print '<td class="expensereportcreateextrafields">'.$langs->trans('Extrafields').'</td>';
 				print '<td class="right expensereportcreatevat">'.$langs->trans('VAT').'</td>';
 				print '<td class="right expensereportcreatepriceuth">'.$langs->trans('PriceUHT').'</td>';
 				print '<td class="right expensereportcreatepricettc">'.$langs->trans('PriceUTTC').'</td>';
@@ -2650,6 +2737,23 @@ if ($action == 'create') {
 				print '<td class="inputcomment">';
 				print '<textarea class="flat_ndf centpercent" name="comments" rows="'.ROWS_2.'">'.dol_escape_htmltag(!empty($comments) ? $comments : "", 0, 1).'</textarea>';
 				print '</td>';
+
+				// Extrafields
+				if ($ThereIsLineExtrafields)
+				{
+					print '<td class="linecolextrafields">';
+					$tmpline = new ExpenseReportLine($db);
+					$temps = $tmpline->showOptionals($extrafields, 'create', array(), '', '', '1', 'line');
+
+					print '<div style="padding-top: 10px" id="extrafield_lines_area_' . $object->id . '" name="extrafield_lines_area_' . $object->id . '">';
+
+					if (!empty($temps)) {
+						print $temps;
+					}
+
+					print '</div>';
+					print '</td>';
+				}
 
 				// Select VAT
 				print '<td class="right inputvat">';

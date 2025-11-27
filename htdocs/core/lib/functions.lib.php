@@ -15039,6 +15039,13 @@ function getElementProperties($elementType)
 		$classname = 'RecruitmentJobPosition';
 		$subelement = 'recruitmentjobposition';
 		$subdir = '/recruitmentjobposition';
+	} elseif ($elementType == 'expensereport_det') {
+		$module = 'expensereport';
+		$classfile = 'expensereport';
+		$classpath = 'expensereport/class';
+		$classname = 'ExpenseReportLine';
+		$table_element = 'expensereport_det';
+		$parent_element = 'expensereport';
 	}
 
 
